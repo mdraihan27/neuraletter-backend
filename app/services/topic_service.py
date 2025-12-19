@@ -37,7 +37,7 @@ class TopicService:
 
 
             new_topic = Topic(
-                id=generate_random_string(),
+                id=generate_random_string(32),
                 title=title,
                 tier=tier,
                 model=model,
@@ -187,24 +187,24 @@ class TopicService:
 
             if topic_update.get("model") is not None and topic_update.get("model") !="":
                 if topic.tier == "free":
-                    if topic_update.get("model") == "mistral-large-2512":
-                        topic.model = "mistral-large-2512"
+                    if topic_update.get("model") == "ai-large-2512":
+                        topic.model = "ai-large-2512"
                     else:
                         return JSONResponse(
                             content={"message": "Invalid model for free tier"},
                             status_code=400
                         )
                 elif topic.tier == "premium":
-                    if topic_update.get("model") == "mistral-large-2512":
-                        topic.model = "mistral-large-2512"
+                    if topic_update.get("model") == "ai-large-2512":
+                        topic.model = "ai-large-2512"
                     else:
                         return JSONResponse(
                             content={"message": "Invalid model for premium tier"},
                             status_code=400
                         )
                 elif topic.tier == "pay-as-you-go":
-                    if topic_update.get("model") == "mistral-large-2512":
-                        topic.model = "mistral-large-2512"
+                    if topic_update.get("model") == "ai-large-2512":
+                        topic.model = "ai-large-2512"
                     else:
                         return JSONResponse(
                             content={"message": "Invalid model for Pay As You Go tier"},

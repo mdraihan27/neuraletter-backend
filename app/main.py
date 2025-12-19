@@ -4,12 +4,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.endpoints import auth, health, user_verification, user, google_auth, reset_password, topic
+from app.api.v1.endpoints.ai import ai_endpoints
 from app.core.config import settings
 from app.db.init_db import init_db
 from app.api.v1.endpoints.google_auth import router as google_auth_router
+# from app.services.mistral.conversation_service import continue_conversation, start_conversation, create_agent
 
 app = FastAPI(title="Neuraletter API")
 
+# authenticated user has attribute user_id instead of id
 # ✅ CORS MUST BE HERE — ON THE REAL APP
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +42,22 @@ app.include_router(google_auth.router, prefix="/api/v1/auth", tags=["Google Auth
 app.include_router(reset_password.router, prefix="/api/v1/user", tags=["Reset Password"])
 app.include_router(google_auth_router, prefix="/api/v1")
 app.include_router(topic.router, prefix="/api/v1/topic", tags=["Topic"])
+app.include_router(ai_endpoints.router, prefix="/api/v1/ai", tags=["AI"])
+
+
+
+# //ai test run
+
+# message = input("Message: ")
+# print(start_conversation(message))
+# conversation_id = input("Conversation ID: ")
+# while(True):
+#
+#     message = input("Message: ")
+#     print(continue_conversation(conversation_id, message))
+#
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+

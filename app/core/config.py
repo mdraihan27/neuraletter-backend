@@ -25,6 +25,9 @@ class Settings(BaseSettings):
 
     IS_HTTPS: bool
 
+    MISTRAL_API_KEY: str
+
+
     class Config:
         env_file = ".env"
 

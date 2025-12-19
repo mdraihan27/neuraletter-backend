@@ -3,16 +3,15 @@ from sqlalchemy import Column, Integer, String, BigInteger, text, Boolean
 from app.db.base import Base
 
 
-class Topic_Chat(Base):
-    __tablename__ = "topic_chats"
+class Agent(Base):
+    __tablename__ = "agents"
 
     id = Column(String(255), primary_key=True, index=True, nullable=False)
 
-    associated_topic_id = Column(String(255), unique=False, nullable=False)
+    agent_id = Column(String(255),  nullable=False)
 
-    chat_message = Column(String, nullable=True)
-
-    sent_by_user = Column(Boolean, nullable=False)
+    model = Column(String(255), unique=True, nullable=False)
 
     # PostgreSQL-native millisecond timestamps
     created_at = Column(BigInteger, nullable=False, server_default=text("EXTRACT(EPOCH FROM NOW()) * 1000"))
+

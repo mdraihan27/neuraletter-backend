@@ -20,6 +20,8 @@ class Topic(Base):
 
     due_payment = Column(Integer, nullable=False)
 
+    ai_conversation_id = Column(String(255), nullable=True)
+
     # PostgreSQL-native millisecond timestamps
     created_at = Column(BigInteger, nullable=False, server_default=text("EXTRACT(EPOCH FROM NOW()) * 1000"))
 
