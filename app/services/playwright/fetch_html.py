@@ -5,7 +5,6 @@ URLS = [
     "https://prothomalo.com",
 ]
 
-OUTPUT_FILE = "html_dump.json"
 
 
 def collect_text_and_links(urls, headless=True):
@@ -54,9 +53,6 @@ def collect_text_and_links(urls, headless=True):
                 """
             )
         results.append(data)
-
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
 
     return results
 
