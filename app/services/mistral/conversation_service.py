@@ -8,14 +8,14 @@ from mistralai import Mistral, SDKError
 
 from app.models.agent import Agent
 from app.models.topic import Topic
-from app.models.topic_chat import Topic_Chat
+from app.models.topic_chat import TopicChat
 from app.utils.random_generator import generate_random_string
 
 
 class MistralConversationService:
     def request_ai(self, prompt: str):
         # model = "ai-small-2506"
-        model = "ai-large-2512"
+        model = "mistral-large-2512"
 
         client = Mistral(api_key=settings.MISTRAL_API_KEY)
 
@@ -52,8 +52,8 @@ class MistralConversationService:
                          "6. Questions are only to asked to get more context about the topic user wants the summary on. Nothing else",
 
             completion_args={
-                "temperature": 0.3,
-                "top_p": 0.5,
+                "temperature": 1.2,
+                "top_p": 0.98,
             }
         )
 
@@ -98,7 +98,7 @@ class MistralConversationService:
                 raise Exception("Topic not found")
 
             # user message store
-            topic_chat_user = Topic_Chat(
+            topic_chat_user = TopicChat(
                 id = generate_random_string(32),
                 associated_topic_id=topic_id,
                 chat_message=message,
@@ -179,7 +179,7 @@ class MistralConversationService:
                 ai_message = ai_message_json["question"]
 
             elif "summary" in ai_message_json:
-                ai_message = "Your summary is generated"
+                ai_message = ai_message_json["summary"]
 
                 topic.description = ai_message_json["summary"]
                 db.add(topic)
@@ -187,7 +187,7 @@ class MistralConversationService:
             else:
                 raise Exception("AI response missing required fields")
 
-            topic_chat = Topic_Chat(
+            topic_chat = TopicChat(
                 id = generate_random_string(32),
                 associated_topic_id=topic_id,
                 chat_message=ai_message,

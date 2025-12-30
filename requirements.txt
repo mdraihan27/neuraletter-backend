@@ -1,3 +1,5 @@
+playwright
+apscheduler
 mistralai
 pycryptodome
 annotated-doc==0.0.4
