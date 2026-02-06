@@ -8,7 +8,6 @@ from app.core.config import settings
 def send_email(to_email: str, subject: str, body: str):
     msg = EmailMessage()
 
-    # ✅ Sender name + email
     msg["From"] = f"{settings.SMTP_SENDER_NAME} <{settings.SMTP_EMAIL}>"
     msg["To"] = to_email
     msg["Subject"] = subject
@@ -25,21 +24,14 @@ def send_email(to_email: str, subject: str, body: str):
 
 
 def send_updates_email(to_email: str, topic_title: str, updates: List[object]):
-    """Send a minimal, structured HTML email containing a list of updates.
 
-    - ``updates`` is expected to be a list of objects with ``title``,
-      ``summary`` and optional ``source_url`` attributes (e.g. ``Update`` models).
-    - The email uses a clean, minimal layout without gradients.
-    """
     safe_topic_title = topic_title or "your topic"
 
-    # Fallback: if there are no updates, send a simple text email and return
     if not updates:
         body = f"There are currently no new updates for '{safe_topic_title}'."
         send_email(to_email, f"No new updates for {safe_topic_title}", body)
         return
 
-    # Build plain-text body
     lines = [
         f"Here is a quick snapshot of your latest updates for '{safe_topic_title}':",
         "",
@@ -59,7 +51,6 @@ def send_updates_email(to_email: str, topic_title: str, updates: List[object]):
 
     text_body = "\n".join(lines).strip()
 
-    # Build minimal HTML body
     items_html_parts = []
     for u in updates:
         title = getattr(u, "title", None) or "Update"
@@ -72,9 +63,7 @@ def send_updates_email(to_email: str, topic_title: str, updates: List[object]):
               <a href=\"{source_url}\" style=\"color:#2563eb;text-decoration:none;font-size:13px;\">View source</a>
             """
 
-          # Use full-width block cards with bottom margin so they
-          # reliably stack as rows in email clients (no flexbox).
-          items_html_parts.append(
+        items_html_parts.append(
               f"""
               <div style=\"width:100%;box-sizing:border-box;padding:12px 14px;border-radius:10px;border:1px solid #e5e7eb;background-color:#f9fafb;margin-bottom:12px;\">
                 <div style=\"font-size:14px;font-weight:600;color:#111827;margin-bottom:4px;\">{title}</div>
@@ -82,7 +71,7 @@ def send_updates_email(to_email: str, topic_title: str, updates: List[object]):
                 {link_html}
               </div>
               """
-          )
+        )
 
     items_html = "".join(items_html_parts)
 

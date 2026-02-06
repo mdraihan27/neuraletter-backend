@@ -36,7 +36,6 @@ class UpdateService:
 
 			updates_list = []
 			for update in updates:
-				# key_points are stored as JSON array string in DB; best-effort parse
 				key_points_value = []
 				if update.key_points:
 					try:
@@ -46,7 +45,6 @@ class UpdateService:
 						if isinstance(parsed, list):
 							key_points_value = parsed
 					except Exception:
-						# On any parsing error, just fall back to empty list
 						key_points_value = []
 
 				updates_list.append(

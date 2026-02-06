@@ -12,6 +12,5 @@ class Agent(Base):
 
     model = Column(String(255), unique=True, nullable=False)
 
-    # PostgreSQL-native millisecond timestamps
     created_at = Column(BigInteger, nullable=False, server_default=text("EXTRACT(EPOCH FROM NOW()) * 1000"))
 

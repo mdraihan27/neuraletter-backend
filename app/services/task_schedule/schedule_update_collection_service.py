@@ -4,7 +4,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.db.session import SessionLocal
 from app.models.topic import Topic
-from app.services.mistral.collect_update_service import collect_updates_for_topic
 
 
 scheduler = BackgroundScheduler()
@@ -21,7 +20,7 @@ def _run_combined_task_for_topic(topic_id: str) -> None:
             print(f"[scheduler] Topic not found for id={topic_id}")
             return
 
-        # Only process topics that have a non-empty description
+        
         if not topic.description or not str(topic.description).strip():
             print(f"[scheduler] Skipping topic without description id={topic_id}")
             return
@@ -41,13 +40,12 @@ def _schedule_recurring_topic_job(topic: Topic) -> None:
     then it repeats every 24 hours.
     """
 
-    # Use local time to align with APScheduler's default timezone and avoid
-    # "missed by X hours" messages caused by naive UTC datetimes.
+    
     start_time = datetime.now()
     job_id = f"topic_update_{topic.id}"
 
     try:
-        # Interval trigger: run every 24 hours, first run as soon as possible.
+        
         scheduler.add_job(
             _run_combined_task_for_topic,
             "interval",
@@ -67,7 +65,7 @@ def start_topic_update_scheduler() -> None:
     try:
         print("[scheduler] start_topic_update_scheduler() called")
         if getattr(scheduler, "running", False):
-            # Already started (e.g. in dev reload scenarios)
+           
             print("[scheduler] Topic update scheduler already running")
             return
 

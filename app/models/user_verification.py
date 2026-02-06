@@ -15,6 +15,5 @@ class UserVerification(Base):
 
     expire_at = Column(BigInteger, nullable=False)
 
-    # PostgreSQL-native millisecond timestamps
     generated_at = Column(BigInteger, nullable=False)
 

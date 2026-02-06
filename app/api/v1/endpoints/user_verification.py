@@ -12,7 +12,6 @@ router = APIRouter()
 class Verification(BaseModel):
     verification_code: int
 
-# Signup endpoint
 @router.post("/code")
 def send_verification_code(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
@@ -24,8 +23,6 @@ def send_verification_code(current_user: dict = Depends(get_current_user), db: S
             detail=str(e)
         )
 
-
-# Login endpoint
 @router.post("/verify")
 def verify_verification_code(verification: Verification, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     try:

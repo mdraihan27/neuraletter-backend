@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
 
-# from app.api.v1.endpoints.user import UpdatedUserInfo
 from app.utils.user_util import create_user_response
 from app.db.session import get_db
 from app.models.user import User

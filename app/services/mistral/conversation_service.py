@@ -18,7 +18,6 @@ from app.services.serpapi.search_serp import search_serp_with_topic_description
 
 class MistralConversationService:
     def request_ai(self, prompt: str):
-        # model = "ai-small-2506"
         model = "mistral-large-2512"
 
         client = Mistral(api_key=settings.MISTRAL_API_KEY)
@@ -30,49 +29,29 @@ class MistralConversationService:
             ]
         )
 
-        # print("Res: "+chat_response)
         return chat_response.choices[0].message.content
 
     def request_ai_with_chunking(self, base_prompt: str, data: str, max_chars: int = 15000):
-        """
-        Request AI with chunking support for large data.
-        Splits data into chunks if it exceeds max_chars, processes each chunk,
-        and merges the results.
-        
-        Args:
-            base_prompt: The prompt template (should include placeholder for data)
-            data: The data to process (will be chunked if too large)
-            max_chars: Maximum characters per chunk (default: 15000)
-            
-        Returns:
-            Merged result from all chunks
-        """
-        # If data is small enough, process normally
+  
         if len(data) <= max_chars:
             full_prompt = base_prompt.replace("{DATA}", data)
             return self.request_ai(full_prompt)
         
-        # Split data into chunks
         chunks = []
         current_chunk = ""
         
-        # For JSON data, try to split by objects/sections
         try:
             data_obj = json.loads(data)
             if isinstance(data_obj, list):
-                # Split list into chunks
                 chunk_size = max(1, len(data_obj) // ((len(data) // max_chars) + 1))
                 for i in range(0, len(data_obj), chunk_size):
                     chunk_data = data_obj[i:i + chunk_size]
                     chunks.append(json.dumps(chunk_data, ensure_ascii=False))
             else:
-                # If not a list, split by character count
                 chunks = [data[i:i + max_chars] for i in range(0, len(data), max_chars)]
         except json.JSONDecodeError:
-            # If not valid JSON, split by character count
             chunks = [data[i:i + max_chars] for i in range(0, len(data), max_chars)]
         
-        # Process each chunk
         results = []
         for i, chunk in enumerate(chunks):
             chunk_prompt = base_prompt.replace("{DATA}", chunk)
@@ -82,24 +61,18 @@ class MistralConversationService:
             result = self.request_ai(chunk_prompt)
             results.append(result)
         
-        # Merge results
         return self._merge_chunked_results(results)
     
     def _merge_chunked_results(self, results: list) -> str:
-        """
-        Merge results from chunked processing.
-        Tries to intelligently combine results based on their format.
-        """
+   
         if len(results) == 1:
             return results[0]
         
-        # Try to merge as lists
         merged_list = []
         all_lists = True
         
         for result in results:
             try:
-                # Clean markdown code blocks if present
                 clean_result = result.replace("```json", "").replace("```", "").strip()
                 parsed = json.loads(clean_result)
                 if isinstance(parsed, list):
@@ -114,7 +87,6 @@ class MistralConversationService:
         if all_lists and merged_list:
             return json.dumps(merged_list, ensure_ascii=False)
         
-        # If not lists, concatenate as strings
         return "\n".join(results)
 
     def create_agent(self, model):
@@ -152,30 +124,22 @@ class MistralConversationService:
         return description_creator_agent
 
     def run_serp_topic_enrichment(self, topic: Topic, db: Session) -> None:
-        """Run SerpAPI search + SERP topic agent on a finalized topic description.
-
-        This is synchronous: SerpAPI search runs first; only after results are
-        available do we invoke the Mistral agent. The agent's JSON result is
-        printed to the server logs.
-        """
+       
         try:
             if not topic or not topic.description:
                 return
 
-            # 1) Get SERP results for the topic description
             serp_results = search_serp_with_topic_description(topic.description)
             if not serp_results:
                 print("SERP search returned no results or failed")
                 return
 
-            # 2) Load the fixed SERP topic agent from DB
             fixed_id = "ePscUwZlIHIdsfsgerseg235vdaYTVMM"
             serp_agent_row = db.query(Agent).filter(Agent.id == fixed_id).first()
             if not serp_agent_row:
                 print("SERP topic agent not found in DB; run /gen-agent/ first")
                 return
 
-            # 3) Call Mistral agent with description + SERP results
             api_key = settings.MISTRAL_API_KEY
             client = Mistral(api_key)
 
@@ -187,7 +151,6 @@ class MistralConversationService:
                 ensure_ascii=False,
             )
 
-            # Use a one-shot conversation with the agent; wait for completion
             response = client.beta.conversations.start(
                 agent_id=serp_agent_row.agent_id,
                 inputs=agent_input,
@@ -201,9 +164,7 @@ class MistralConversationService:
             print("SERP topic agent result:")
             print(ai_result)
 
-            # Parse agent JSON and create Update rows
             try:
-                # Clean potential markdown code fencing if any
                 clean = str(ai_result).replace("```json", "").replace("```", "").strip()
                 data = json.loads(clean)
             except Exception as e:
@@ -215,14 +176,11 @@ class MistralConversationService:
                 print("SERP agent JSON has no detailed_points array")
                 return
 
-            # Single batch id shared by all updates from this response
             batch_id = generate_random_string(32)
 
-            # Collect created Update objects so we can email them
             created_updates = []
 
             for point in detailed_points:
-                # Ensure dict-like access; skip invalid entries
                 if not isinstance(point, dict):
                     continue
 
@@ -245,7 +203,6 @@ class MistralConversationService:
                 db.add(update)
                 created_updates.append(update)
 
-            # Persist updates before notifying the user
             if created_updates:
                 try:
                     db.commit()
@@ -254,7 +211,6 @@ class MistralConversationService:
                     print(f"Failed to commit SERP updates: {commit_err}")
                     return
 
-                # Look up the topic owner and send them the email
                 try:
                     user = db.query(User).filter(User.id == topic.associated_user_id).first()
                     if user and user.email:
@@ -263,23 +219,13 @@ class MistralConversationService:
                     else:
                         print("No user/email found for topic; skipping update email")
                 except Exception as email_err:
-                    # Do not break flow because of email issues
                     print(f"Failed to send updates email: {email_err}")
 
         except Exception as e:
-            # Log but do not break the main chat flow
             print(f"SERP topic enrichment error: {e}")
 
     def create_serp_topic_agent(self, model: str, db: Session):
-        """Create or update an agent dedicated to processing SERP results for a topic.
-
-        The agent will later receive:
-        1) A topic description
-        2) SERP API search results (e.g. from GoogleSearch via SerpAPI)
-
-        and must return a single JSON object with detailed points about the topic
-        extracted from those search results.
-        """
+       
         api_key = settings.MISTRAL_API_KEY
         client = Mistral(api_key)
 
@@ -311,14 +257,13 @@ class MistralConversationService:
             }
         )
 
-        # Fixed Agent.id requested by user for this SERP topic agent
+        
         fixed_id = "ePscUwZlIHIdsfsgerseg235vdaYTVMM"
 
         existing = db.query(Agent).filter(Agent.id == fixed_id).first()
         if existing:
             existing.agent_id = serp_agent.id
-            # Use a distinct model label so it does not clash with
-            # the conversation agent which also uses the same base model.
+            
             existing.model = "serp-topic-update-agent"
             db.add(existing)
             db.commit()
@@ -341,8 +286,7 @@ class MistralConversationService:
         response = client.beta.conversations.start(
             agent_id=agent_id,
             inputs=message,
-            # inputs=[{"role": "user", "content": "Who is Albert Einstein?"}] is also valid
-            # store=False
+            
         )
 
         return response
@@ -371,7 +315,7 @@ class MistralConversationService:
             if not topic:
                 raise Exception("Topic not found")
 
-            # user message store
+            
             topic_chat_user = TopicChat(
                 id = generate_random_string(32),
                 associated_topic_id=topic_id,
@@ -381,11 +325,11 @@ class MistralConversationService:
             db.add(topic_chat_user)
 
 
-            # check if first chat
+            
             conversation_id= topic.ai_conversation_id
             ai_message = ""
             if not conversation_id:
-                # First message in the conversation
+               
                 try:
                     agent= db.query(Agent).filter(Agent.model == topic.model).first()
                     if not agent:
@@ -400,14 +344,14 @@ class MistralConversationService:
                     first_response = self.start_conversation(agent.agent_id, message)
 
                 except SDKError as e:
-                    # Check HTTP status code only
+                    
                     if e.status_code==404:
                         agent_result = self.create_agent(topic.model)
                         agent_id = agent_result.id
                         agent.agent_id = agent_result.id
                         first_response = self.start_conversation(agent.agent_id, message)
                     else:
-                        # Any other SDK error
+                        
                         raise e
                 print(first_response)
                 if not first_response:
@@ -441,13 +385,13 @@ class MistralConversationService:
                     raise Exception("Failed to get message from AI")
 
             try:
-                # Remove markdown code blocks and clean the message
+                
                 clean_message = ai_message.replace("```json", "```").strip()
                 
-                # Split by code block markers to handle multiple JSON blocks
+               
                 json_blocks = clean_message.split("```")
                 
-                # Try to parse each block and use the first valid one
+                
                 ai_message_json = None
                 for block in json_blocks:
                     block = block.strip()
@@ -455,7 +399,7 @@ class MistralConversationService:
                         continue
                     try:
                         parsed = json.loads(block)
-                        # Only accept JSON objects with 'question' or 'summary' keys
+                        
                         if isinstance(parsed, dict) and ('question' in parsed or 'summary' in parsed):
                             ai_message_json = parsed
                             break
@@ -480,8 +424,7 @@ class MistralConversationService:
                 topic.description = ai_message_json["summary"]
                 db.add(topic)
 
-                # After we have a final description, synchronously run the
-                # SERP search + SERP topic agent pipeline.
+                
                 self.run_serp_topic_enrichment(topic, db)
 
             else:
@@ -518,18 +461,13 @@ class MistralConversationService:
 
 
     def recreate_agent(self, db: Session, model: str):
-        """
-        Recreate an agent with updated instructions.
-        This is useful when agent instructions have been updated.
-        """
+        
         try:
-            # Find and delete the old agent
             old_agent = db.query(Agent).filter(Agent.model == model).first()
             if old_agent:
                 db.delete(old_agent)
                 db.commit()
             
-            # Create a new agent with updated instructions
             agent_result = self.create_agent(model)
             new_agent = Agent(
                 id=generate_random_string(32),

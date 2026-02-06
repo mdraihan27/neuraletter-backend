@@ -18,7 +18,6 @@ class User(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100))
 
-    # PostgreSQL-native millisecond timestamps
     created_at = Column(BigInteger, nullable=False, server_default=text("EXTRACT(EPOCH FROM NOW()) * 1000"))
 
     updated_at = Column(BigInteger, nullable=False, server_default=text("EXTRACT(EPOCH FROM NOW()) * 1000"), onupdate=text("EXTRACT(EPOCH FROM NOW()) * 1000"))

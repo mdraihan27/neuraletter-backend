@@ -14,10 +14,6 @@ from app.services.reset_password_service import send_password_reset_email, \
 
 router = APIRouter()
 
-# class PasswordResetRequest(BaseModel):
-#     new_password: str
-#     old_password: str
-
 class PasswordResetRequest(BaseModel):
     reset_password_code: int
     new_password: str
@@ -28,17 +24,6 @@ class ForgotPasswordRequest(BaseModel):
 class Verification(BaseModel):
     email: str
     verification_code: int
-
-
-
-# @router.patch("/password/reset")
-# def reset_password(password_reset_request:PasswordResetRequest, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) ->JSONResponse:
-#     try:
-#        return reset_password_with_access_token(password_reset_request.new_password, password_reset_request.old_password, current_user, db)
-#
-#
-#     except Exception as e:
-#         return JSONResponse(content={"message" : "Password reset unsuccessful"}, status_code=500)
 
 @router.patch("/password/reset")
 def reset_password_using_token(password_reset_request:PasswordResetRequest, current_user:dict = Depends(get_current_user), db: Session = Depends(get_db)) ->JSONResponse:

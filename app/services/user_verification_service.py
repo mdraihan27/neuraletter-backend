@@ -63,7 +63,7 @@ def verify_code(user_id_in_context: str, code: int, db: Session ) -> JSONRespons
             return JSONResponse(content={"message":"User is already verified"}, status_code=409)
 
         user.is_verified = True
-        user_verification.expire_at = int(time.time() * 1000)  # Invalidate the code immediately after successful verification
+        user_verification.expire_at = int(time.time() * 1000)  
         db.commit()
         db.refresh(user)
         db.refresh(user_verification)

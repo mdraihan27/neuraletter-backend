@@ -12,12 +12,11 @@ def _derive_aes_key(secret: str) -> bytes:
 def encrypt_data(plaintext: str) -> str | None:
     try:
         key = _derive_aes_key(settings.RESET_PASSWORD_SECRET_KEY)
-        iv = get_random_bytes(12)  # Recommended size for GCM
+        iv = get_random_bytes(12)  
 
         cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
         ciphertext, tag = cipher.encrypt_and_digest(plaintext.encode())
 
-        # Pack everything together safely
         token = base64.urlsafe_b64encode(iv + tag + ciphertext).decode()
         return token
     except Exception as e:

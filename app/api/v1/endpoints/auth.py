@@ -8,7 +8,6 @@ from app.services.auth_service import AuthService
 router = APIRouter()
 auth_service = AuthService()
 
-# Request/response schemas
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -23,7 +22,6 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-# Signup endpoint
 @router.post("/signup", response_model=TokenResponse)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     try:
@@ -34,8 +32,6 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
             detail=str(e)
         )
 
-
-# Login endpoint
 @router.post("/login", response_model=TokenResponse)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
     try:

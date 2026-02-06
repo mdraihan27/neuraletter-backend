@@ -15,7 +15,6 @@ from app.core.auth import create_jwt_token, verify_jwt_token
 from app.utils.random_generator import generate_random_string
 from fastapi.responses import RedirectResponse
 
-# Detect if bcrypt is compatible with passlib (bcrypt>=4.1 removed __about__)
 try:
     import bcrypt as _bcrypt  # type: ignore
     _ = _bcrypt.__about__.__version__  # raises if missing on bcrypt>=4.1
@@ -23,7 +22,6 @@ try:
 except Exception:
     _BCRYPT_OK = False
 
-# Prefer bcrypt when OK; otherwise fall back to pbkdf2_sha256 to avoid runtime errors
 _pwd_schemes = ["bcrypt", "pbkdf2_sha256"] if _BCRYPT_OK else ["pbkdf2_sha256"]
 pwd_context = CryptContext(schemes=_pwd_schemes, deprecated="auto")
 
@@ -40,12 +38,10 @@ class AuthService:
         return pwd_context.verify(plain_password, hashed_password)
 
 
-    # Create a new user and return JWT
     def create_user(self, user_data, db: Session) -> JSONResponse:
 
         try:
 
-            # Check if email already exists
             if db.query(User).filter(User.email == user_data.email).first():
                 raise Exception("User already exists")
 
@@ -78,7 +74,6 @@ class AuthService:
                 return JSONResponse(content={"message":"User with this email already exists"}, status_code=status.HTTP_400_BAD_REQUEST)
             return JSONResponse(content={"message":"An unexpected error occurred"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # Authenticate user credentials
     def authenticate_user(self, email: str, password: str, db: Session) -> JSONResponse:
 
         try:

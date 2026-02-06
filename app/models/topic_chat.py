@@ -14,5 +14,4 @@ class TopicChat(Base):
 
     sent_by_user = Column(Boolean, nullable=False)
 
-    # PostgreSQL-native millisecond timestamps
     created_at = Column(BigInteger, nullable=False, server_default=text("EXTRACT(EPOCH FROM NOW()) * 1000"))

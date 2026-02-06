@@ -25,8 +25,8 @@ from app.utils.random_generator import generate_random_string
 from app.utils.user_util import create_user_response
 
 try:
-    import bcrypt as _bcrypt  # type: ignore
-    _ = _bcrypt.__about__.__version__  # raises if missing on bcrypt>=4.1
+    import bcrypt as _bcrypt  
+    _ = _bcrypt.__about__.__version__  
     _BCRYPT_OK = True
 except Exception:
     _BCRYPT_OK = False
@@ -181,11 +181,10 @@ def verify_reset_password_code(user_email: str, code: int, db: Session) -> JSONR
             return JSONResponse(content={"message":"Code has expired, please request a new one"}, status_code=404)
 
         token = create_jwt_token(user.id, user.email)
-        # password_reset_token = create_reset_password_token(user.id, user.email)
 
         reset_password_code = random.randint(100000, 999999)
         user_verification.verification_code = reset_password_code
-        user_verification.expire_at = int(time.time() * 1000) + 5*60*1000  # Invalidate the code immediately after successful verification
+        user_verification.expire_at = int(time.time() * 1000) + 5*60*1000  
         db.commit()
         db.refresh(user)
         db.refresh(user_verification)
