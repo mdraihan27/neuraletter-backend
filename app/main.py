@@ -8,7 +8,6 @@ from app.api.v1.endpoints.ai import ai_endpoints
 from app.core.config import settings
 from app.db.init_db import init_db
 from app.api.v1.endpoints.google_auth import router as google_auth_router
-from app.services.mistral.collect_update_service import combined_task
 from app.services.task_schedule.schedule_update_collection_service import start_topic_update_scheduler
 
 # from app.services.mistral.conversation_service import continue_conversation, start_conversation, create_agent

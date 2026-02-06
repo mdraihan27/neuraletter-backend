@@ -14,7 +14,7 @@ class UpdateService:
 		try:
 			topic = (
 				db.query(Topic)
-				.filter(Topic.id == topic_id, Topic.associated_user_id == authenticated_user_id)
+				.filter(Topic.id == topic_id)
 				.first()
 			)
 

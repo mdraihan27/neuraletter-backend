@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     IS_HTTPS: bool
 
     MISTRAL_API_KEY: str
+    SERP_API_KEY: str
 
 
     class Config:
