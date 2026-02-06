@@ -9,7 +9,10 @@ from mistralai import Mistral, SDKError
 from app.models.agent import Agent
 from app.models.topic import Topic
 from app.models.topic_chat import TopicChat
+from app.models.update import Update
+from app.models.user import User
 from app.utils.random_generator import generate_random_string
+from app.services.email_service import send_updates_email
 from app.services.serpapi.search_serp import search_serp_with_topic_description
 
 
@@ -197,6 +200,71 @@ class MistralConversationService:
             ai_result = response.outputs[0].content
             print("SERP topic agent result:")
             print(ai_result)
+
+            # Parse agent JSON and create Update rows
+            try:
+                # Clean potential markdown code fencing if any
+                clean = str(ai_result).replace("```json", "").replace("```", "").strip()
+                data = json.loads(clean)
+            except Exception as e:
+                print(f"Failed to parse SERP agent JSON: {e}")
+                return
+
+            detailed_points = data.get("detailed_points") or []
+            if not isinstance(detailed_points, list) or not detailed_points:
+                print("SERP agent JSON has no detailed_points array")
+                return
+
+            # Single batch id shared by all updates from this response
+            batch_id = generate_random_string(32)
+
+            # Collect created Update objects so we can email them
+            created_updates = []
+
+            for point in detailed_points:
+                # Ensure dict-like access; skip invalid entries
+                if not isinstance(point, dict):
+                    continue
+
+                title = point.get("title")
+                summary = point.get("summary")
+                source_url = point.get("source_url")
+
+                update = Update(
+                    id=generate_random_string(32),
+                    associated_topic_id=topic.id,
+                    title=title if title is not None else None,
+                    batch_id=batch_id,
+                    author=None,
+                    summary=summary if summary is not None else None,
+                    source_url=source_url if source_url is not None else None,
+                    date=None,
+                    key_points=None,
+                    image_link=None,
+                )
+                db.add(update)
+                created_updates.append(update)
+
+            # Persist updates before notifying the user
+            if created_updates:
+                try:
+                    db.commit()
+                except Exception as commit_err:
+                    db.rollback()
+                    print(f"Failed to commit SERP updates: {commit_err}")
+                    return
+
+                # Look up the topic owner and send them the email
+                try:
+                    user = db.query(User).filter(User.id == topic.associated_user_id).first()
+                    if user and user.email:
+                        topic_title = topic.title or topic.description or "your topic"
+                        send_updates_email(user.email, topic_title, created_updates)
+                    else:
+                        print("No user/email found for topic; skipping update email")
+                except Exception as email_err:
+                    # Do not break flow because of email issues
+                    print(f"Failed to send updates email: {email_err}")
 
         except Exception as e:
             # Log but do not break the main chat flow

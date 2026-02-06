@@ -14,7 +14,10 @@ class UpdateService:
 		try:
 			topic = (
 				db.query(Topic)
-				.filter(Topic.id == topic_id)
+				.filter(
+					Topic.id == topic_id,
+					Topic.associated_user_id == authenticated_user_id,
+				)
 				.first()
 			)
 
@@ -49,8 +52,12 @@ class UpdateService:
 				updates_list.append(
 					{
 						"id": update.id,
+						"associated_topic_id": update.associated_topic_id,
 						"title": update.title,
+						"batch_id": update.batch_id,
 						"author": update.author,
+						"summary": update.summary,
+						"source_url": update.source_url,
 						"date": update.date,
 						"key_points": key_points_value,
 						"image_link": update.image_link,
