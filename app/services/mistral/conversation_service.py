@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 from starlette import status
@@ -6,6 +7,7 @@ from starlette.responses import JSONResponse
 from app.core.config import settings
 from mistralai import Mistral, SDKError
 
+from app.db.session import SessionLocal
 from app.models.agent import Agent
 from app.models.topic import Topic
 from app.models.topic_chat import TopicChat
@@ -14,6 +16,10 @@ from app.models.user import User
 from app.utils.random_generator import generate_random_string
 from app.services.email_service import send_updates_email
 from app.services.serpapi.search_serp import search_serp_with_topic_description
+from app.services.task_schedule.schedule_update_collection_service import (
+    scheduler,
+    get_session_for_job,
+)
 
 
 class MistralConversationService:
@@ -123,22 +129,38 @@ class MistralConversationService:
 
         return description_creator_agent
 
-    def run_serp_topic_enrichment(self, topic: Topic, db: Session) -> None:
-       
+    def run_serp_topic_enrichment(self, topic: Topic, db: Session):
+
+        result = {
+            "status": "not_started",
+            "updates_created": [],
+            "errors": [],
+        }
+
         try:
             if not topic or not topic.description:
-                return
+                msg = "Topic or description missing; skipping SERP enrichment"
+                print(msg)
+                result["status"] = "skipped"
+                result["errors"].append(msg)
+                return result
 
             serp_results = search_serp_with_topic_description(topic.description)
             if not serp_results:
-                print("SERP search returned no results or failed")
-                return
+                msg = "SERP search returned no results or failed"
+                print(msg)
+                result["status"] = "no_results"
+                result["errors"].append(msg)
+                return result
 
             fixed_id = "ePscUwZlIHIdsfsgerseg235vdaYTVMM"
             serp_agent_row = db.query(Agent).filter(Agent.id == fixed_id).first()
             if not serp_agent_row:
-                print("SERP topic agent not found in DB; run /gen-agent/ first")
-                return
+                msg = "SERP topic agent not found in DB; run /gen-agent/ first"
+                print(msg)
+                result["status"] = "missing_agent"
+                result["errors"].append(msg)
+                return result
 
             api_key = settings.MISTRAL_API_KEY
             client = Mistral(api_key)
@@ -157,8 +179,11 @@ class MistralConversationService:
             )
 
             if not response or not getattr(response, "outputs", None):
-                print("SERP topic agent returned empty response")
-                return
+                msg = "SERP topic agent returned empty response"
+                print(msg)
+                result["status"] = "empty_agent_response"
+                result["errors"].append(msg)
+                return result
 
             ai_result = response.outputs[0].content
             print("SERP topic agent result:")
@@ -168,13 +193,19 @@ class MistralConversationService:
                 clean = str(ai_result).replace("```json", "").replace("```", "").strip()
                 data = json.loads(clean)
             except Exception as e:
-                print(f"Failed to parse SERP agent JSON: {e}")
-                return
+                msg = f"Failed to parse SERP agent JSON: {e}"
+                print(msg)
+                result["status"] = "parse_error"
+                result["errors"].append(msg)
+                return result
 
             detailed_points = data.get("detailed_points") or []
             if not isinstance(detailed_points, list) or not detailed_points:
-                print("SERP agent JSON has no detailed_points array")
-                return
+                msg = "SERP agent JSON has no detailed_points array"
+                print(msg)
+                result["status"] = "no_points"
+                result["errors"].append(msg)
+                return result
 
             batch_id = generate_random_string(32)
 
@@ -208,8 +239,11 @@ class MistralConversationService:
                     db.commit()
                 except Exception as commit_err:
                     db.rollback()
-                    print(f"Failed to commit SERP updates: {commit_err}")
-                    return
+                    msg = f"Failed to commit SERP updates: {commit_err}"
+                    print(msg)
+                    result["status"] = "db_error"
+                    result["errors"].append(msg)
+                    return result
 
                 try:
                     user = db.query(User).filter(User.id == topic.associated_user_id).first()
@@ -219,10 +253,61 @@ class MistralConversationService:
                     else:
                         print("No user/email found for topic; skipping update email")
                 except Exception as email_err:
-                    print(f"Failed to send updates email: {email_err}")
+                    msg = f"Failed to send updates email: {email_err}"
+                    print(msg)
+                    result["errors"].append(msg)
+
+                result["status"] = "completed"
+                result["updates_created"] = created_updates
+            else:
+                result["status"] = "no_updates"
+
+            return result
 
         except Exception as e:
-            print(f"SERP topic enrichment error: {e}")
+            msg = f"SERP topic enrichment error: {e}"
+            print(msg)
+            result["status"] = "error"
+            result["errors"].append(msg)
+            return result
+
+    def _run_scheduled_serp_topic_enrichment(self, topic_id: str) -> None:
+
+        db = get_session_for_job()
+        try:
+            topic = db.query(Topic).filter(Topic.id == topic_id).first()
+            if not topic or not topic.description:
+                print("Scheduled SERP enrichment: topic missing or without description; skipping")
+                return
+
+            print(f"\nRunning scheduled SERP enrichment for topic {topic.id}")
+            self.run_serp_topic_enrichment(topic, db)
+        finally:
+            db.close()
+
+    def schedule_followup_serp_enrichment(self, topic_id: str, delay_hours: int = 24) -> None:
+
+        first_run_time = datetime.utcnow() + timedelta(hours=delay_hours)
+
+
+        job_id = f"topic_serp_daily_{topic_id}"
+
+        try:
+            scheduler.add_job(
+                self._run_scheduled_serp_topic_enrichment,
+                "interval",
+                hours=delay_hours,
+                next_run_time=first_run_time,
+                args=[topic_id],
+                id=job_id,
+                replace_existing=True,
+            )
+            print(
+                f"Scheduled recurring SERP enrichment for topic {topic_id} "
+                f"every {delay_hours}h starting at {first_run_time} (job_id={job_id})"
+            )
+        except Exception as e:
+            print(f"Failed to schedule recurring SERP enrichment for topic {topic_id}: {e}")
 
     def create_serp_topic_agent(self, model: str, db: Session):
        
@@ -385,13 +470,11 @@ class MistralConversationService:
                     raise Exception("Failed to get message from AI")
 
             try:
-                
+
                 clean_message = ai_message.replace("```json", "```").strip()
-                
-               
+
                 json_blocks = clean_message.split("```")
-                
-                
+
                 ai_message_json = None
                 for block in json_blocks:
                     block = block.strip()
@@ -399,17 +482,26 @@ class MistralConversationService:
                         continue
                     try:
                         parsed = json.loads(block)
-                        
+
                         if isinstance(parsed, dict) and ('question' in parsed or 'summary' in parsed):
                             ai_message_json = parsed
                             break
                     except json.JSONDecodeError:
                         continue
-                
+
                 if not ai_message_json:
+
                     raise Exception("AI did not return valid JSON with required fields")
-                    
+
             except Exception as e:
+                try:
+
+                    if 'clean_message' in locals():
+                        print("[AI ERROR] Cleaned message:", clean_message)
+                    if 'json_blocks' in locals():
+                        print("[AI ERROR] JSON candidate blocks:", json_blocks)
+                except Exception:
+                    pass
                 raise Exception(f"Failed to parse AI response: {str(e)}")
 
             if not ai_message_json:
@@ -424,8 +516,9 @@ class MistralConversationService:
                 topic.description = ai_message_json["summary"]
                 db.add(topic)
 
-                
+
                 self.run_serp_topic_enrichment(topic, db)
+                self.schedule_followup_serp_enrichment(topic.id, delay_hours=24)
 
             else:
                 raise Exception("AI response missing required fields")

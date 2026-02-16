@@ -81,12 +81,15 @@ def collect_updates(
             try:
                 bg_topic = bg_db.query(Topic).filter(Topic.id == topic.id).first()
                 if bg_topic:
-                    print(f"\n🚀 Starting content collection for topic: {bg_topic.description}")
-                    result = collect_updates_for_topic(bg_topic, bg_db)
-                    print(f"\n📊 Collection result: {result['status']}")
-                    print(f"   Updates created: {len(result.get('updates_created', []))}")
-                    if result.get('errors'):
-                        print(f"   Errors: {result['errors']}")
+                    print(f"\nStarting content collection for topic: {bg_topic.description}")
+                    result = conversation_service.run_serp_topic_enrichment(bg_topic, bg_db)
+                    if isinstance(result, dict):
+                        print(f"\n📊 Collection result: {result.get('status')}")
+                        print(f"   Updates created: {len(result.get('updates_created', []))}")
+                        if result.get('errors'):
+                            print(f"   Errors: {result['errors']}")
+                    else:
+                        print("\n📊 Collection finished (no structured result returned)")
             except Exception as e:
                 print(f"Background collection error: {e}")
             finally:
