@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     DATABASE_URL: str
 
+    ADMIN_EMAIL: str | None = None
+
     SMTP_EMAIL: str
     SMTP_PASSWORD: str
     SMTP_SERVER: str = "smtp.gmail.com"

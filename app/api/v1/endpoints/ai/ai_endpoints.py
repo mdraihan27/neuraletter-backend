@@ -7,9 +7,11 @@ from starlette import status
 from starlette.responses import JSONResponse
 
 from app.core.auth import get_current_user
+from app.core.config import settings
 from app.db.session import get_db
 from app.services import user_service
 from app.models.topic import Topic
+from app.models.user import User
 from app.services.mistral.conversation_service import MistralConversationService
 from app.services.topic_service import TopicService
 
@@ -35,9 +37,40 @@ def chat_with_ai(current_user: dict = Depends(get_current_user), db: Session = D
 
 
 @router.post("/gen-agent/")
-def generate_agent(db: Session = Depends(get_db)):
+def generate_agent(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
 
     try:
+        admin_email = (settings.ADMIN_EMAIL or "").strip().lower()
+        if not admin_email:
+            return JSONResponse(
+                content={"message": "ADMIN_EMAIL is not configured"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        user_email = str(current_user.get("user_email") or "").strip().lower()
+        if user_email != admin_email:
+            return JSONResponse(
+                content={"message": "Only admin can access this endpoint"},
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
+        user = db.query(User).filter(User.id == current_user["user_id"]).first()
+        if not user:
+            return JSONResponse(
+                content={"message": "Only admin can access this endpoint"},
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not user.is_verified:
+            return JSONResponse(
+                content={"message": "User must be verified"},
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
+        
         main_agent = conversation_service.create_agent("mistral-large-2512")
 
         conversation_service.create_serp_topic_agent("mistral-large-2512", db)
