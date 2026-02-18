@@ -14,6 +14,7 @@ from app.models.topic import Topic
 from app.models.user import User
 from app.services.mistral.conversation_service import MistralConversationService
 from app.services.topic_service import TopicService
+from app.services.task_schedule.schedule_update_collection_service import schedule_topic_update_at
 
 conversation_service = MistralConversationService()
 router = APIRouter()
@@ -110,12 +111,24 @@ def collect_updates(
         
         def run_collection():
             from app.db.session import SessionLocal
+            from datetime import datetime
             bg_db = SessionLocal()
             try:
                 bg_topic = bg_db.query(Topic).filter(Topic.id == topic.id).first()
                 if bg_topic:
                     print(f"\nStarting content collection for topic: {bg_topic.description}")
                     result = conversation_service.run_serp_topic_enrichment(bg_topic, bg_db)
+
+                    try:
+                        freq = getattr(bg_topic, "update_frequency_hours", None) or 24
+                        now_ms = int(datetime.utcnow().timestamp() * 1000)
+                        bg_topic.next_update_time = now_ms + int(freq) * 60 * 60 * 1000
+                        bg_db.add(bg_topic)
+                        bg_db.commit()
+                        schedule_topic_update_at(bg_topic.id, int(bg_topic.next_update_time))
+                    except Exception as sched_err:
+                        print(f"Failed to persist/schedule next update time: {sched_err}")
+
                     if isinstance(result, dict):
                         print(f"\n📊 Collection result: {result.get('status')}")
                         print(f"   Updates created: {len(result.get('updates_created', []))}")

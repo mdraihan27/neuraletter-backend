@@ -20,6 +20,10 @@ class Topic(Base):
 
     due_payment = Column(Integer, nullable=False)
 
+    update_frequency_hours = Column(Integer, nullable=False)
+
+    next_update_time = Column(BigInteger, nullable=True)
+
     ai_conversation_id = Column(String(255), nullable=True)
 
     created_at = Column(BigInteger, nullable=False, server_default=text("EXTRACT(EPOCH FROM NOW()) * 1000"))

@@ -19,6 +19,7 @@ from app.services.serpapi.search_serp import search_serp_with_topic_description
 from app.services.task_schedule.schedule_update_collection_service import (
     scheduler,
     get_session_for_job,
+    schedule_topic_update_at,
 )
 
 
@@ -518,7 +519,16 @@ class MistralConversationService:
 
 
                 self.run_serp_topic_enrichment(topic, db)
-                self.schedule_followup_serp_enrichment(topic.id, delay_hours=24)
+
+                try:
+                    freq = getattr(topic, "update_frequency_hours", None) or 24
+                    now_ms = int(datetime.utcnow().timestamp() * 1000)
+                    topic.next_update_time = now_ms + int(freq) * 60 * 60 * 1000
+                    db.add(topic)
+
+                    schedule_topic_update_at(topic.id, int(topic.next_update_time))
+                except Exception as sched_err:
+                    print(f"Failed to schedule next topic update: {sched_err}")
 
             else:
                 raise Exception("AI response missing required fields")

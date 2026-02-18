@@ -8,6 +8,7 @@ from app.api.v1.endpoints.ai import ai_endpoints
 from app.core.config import settings
 from app.db.init_db import init_db
 from app.api.v1.endpoints.google_auth import router as google_auth_router
+from app.services.task_schedule.schedule_update_collection_service import schedule_updates_from_db
 
 # from app.services.mistral.conversation_service import continue_conversation, start_conversation, create_agent
 
@@ -47,8 +48,9 @@ app.include_router(topic_chat.router, prefix="/api/v1/topic/chat", tags=["Chat T
 
 
 # @app.on_event("startup")
-# def _start_schedulers() -> None:
-#     start_topic_update_scheduler()
+@app.on_event("startup")
+def _start_schedulers() -> None:
+    schedule_updates_from_db()
 
 
 

@@ -20,6 +20,7 @@ class CreateTopicRequest(BaseModel):
     title :str
     tier :str
     model :str
+    update_frequency_hours: int
 
 class GetTopicByIdRequest(BaseModel):
     topic_id : str
@@ -28,11 +29,19 @@ class TopicUpdate(BaseModel):
     title: Optional[str] = None
     model: Optional[str] = None
     tier: Optional[str] = None
+    update_frequency_hours: Optional[int] = None
 
 @router.post("/")
 def create_topic(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db), create_topic_request: CreateTopicRequest = None):
     try:
-        return topic_service.create_new_topic(create_topic_request.title, create_topic_request.tier, create_topic_request.model, current_user["user_id"], db)
+        return topic_service.create_new_topic(
+            create_topic_request.title,
+            create_topic_request.tier,
+            create_topic_request.model,
+            create_topic_request.update_frequency_hours,
+            current_user["user_id"],
+            db,
+        )
     except Exception as e:
         JSONResponse(
             content={"message": str(e)},

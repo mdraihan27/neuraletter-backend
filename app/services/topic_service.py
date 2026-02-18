@@ -1,14 +1,22 @@
 from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
 
+from datetime import datetime
+
 from app.models.topic import Topic
 from app.utils.random_generator import generate_random_string
 
 
 class TopicService:
 
-    def create_new_topic(self, title: str, tier:str, model:str, authenticated_user_id:str, db: Session) -> JSONResponse:
+    def create_new_topic(self, title: str, tier:str, model:str, update_frequency_hours: int, authenticated_user_id:str, db: Session) -> JSONResponse:
         try:
+            if update_frequency_hours is None or int(update_frequency_hours) <= 0:
+                return JSONResponse(
+                    content={"message": "Invalid update_frequency_hours specified"},
+                    status_code=400,
+                )
+
             if tier == "free":
                 if model != "mistral-large-2512":
                     return JSONResponse(
@@ -44,6 +52,8 @@ class TopicService:
                 associated_user_id=authenticated_user_id,
                 description = None,
                 due_payment=0,
+                update_frequency_hours=int(update_frequency_hours),
+                next_update_time=None,
 
             )
             db.add(new_topic)
@@ -59,7 +69,9 @@ class TopicService:
                         "created_at": new_topic.created_at,
                         "tier": new_topic.tier,
                         "model": new_topic.model,
-                        "due_payment": new_topic.due_payment
+                        "due_payment": new_topic.due_payment,
+                        "update_frequency_hours": new_topic.update_frequency_hours,
+                        "next_update_time": new_topic.next_update_time,
                     }
                 },
                 status_code=201
@@ -81,6 +93,8 @@ class TopicService:
                     {
                         "id": topic.id,
                         "title": topic.title,
+                        "update_frequency_hours": getattr(topic, "update_frequency_hours", None),
+                        "next_update_time": getattr(topic, "next_update_time", None),
                     }
                 )
 
@@ -114,7 +128,9 @@ class TopicService:
                 "tier": topic.tier,
                 "model": topic.model,
                 "description": topic.description,
-                "due_payment": topic.due_payment
+                "due_payment": topic.due_payment,
+                "update_frequency_hours": getattr(topic, "update_frequency_hours", None),
+                "next_update_time": getattr(topic, "next_update_time", None),
             }
 
             return JSONResponse(
@@ -211,6 +227,34 @@ class TopicService:
                             status_code=400
                         )
 
+            if topic_update.get("update_frequency_hours") is not None and str(topic_update.get("update_frequency_hours")) != "":
+                try:
+                    new_freq = int(topic_update.get("update_frequency_hours"))
+                except Exception:
+                    return JSONResponse(
+                        content={"message": "Invalid update_frequency_hours specified"},
+                        status_code=400,
+                    )
+
+                if new_freq <= 0:
+                    return JSONResponse(
+                        content={"message": "Invalid update_frequency_hours specified"},
+                        status_code=400,
+                    )
+
+                topic.update_frequency_hours = new_freq
+
+                # Reschedule immediately based on new frequency.
+                # Only schedule if the topic is already eligible for updates.
+                if getattr(topic, "description", None):
+                    from app.services.task_schedule.schedule_update_collection_service import (
+                        schedule_topic_update_at,
+                    )
+
+                    now_ms = int(datetime.utcnow().timestamp() * 1000)
+                    topic.next_update_time = now_ms + int(new_freq) * 60 * 60 * 1000
+                    schedule_topic_update_at(topic.id, int(topic.next_update_time))
+
 
             db.add(topic)
             db.commit()
@@ -226,7 +270,9 @@ class TopicService:
                         "created_at": topic.created_at,
                         "tier": topic.tier,
                         "model": topic.model,
-                        "due_payment": topic.due_payment
+                        "due_payment": topic.due_payment,
+                        "update_frequency_hours": getattr(topic, "update_frequency_hours", None),
+                        "next_update_time": getattr(topic, "next_update_time", None),
                     }
                 },
                 status_code=200
