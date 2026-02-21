@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from starlette import status
 from starlette.responses import JSONResponse
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_verified_user
 from app.db.session import get_db
 from app.services.update_service import UpdateService
 
@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/{topic_id}")
 def get_updates_by_topic_id(
 	topic_id: str,
-	current_user: dict = Depends(get_current_user),
+	current_user: dict = Depends(get_current_verified_user),
 	db: Session = Depends(get_db),
 ):
 	try:

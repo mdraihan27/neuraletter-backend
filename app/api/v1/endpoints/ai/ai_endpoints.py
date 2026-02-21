@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from starlette import status
 from starlette.responses import JSONResponse
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_verified_user
 from app.core.config import settings
 from app.db.session import get_db
 from app.services import user_service
@@ -27,7 +27,7 @@ class CollectUpdatesRequest(BaseModel):
     topic_id: str
 
 @router.post("/chat/")
-def chat_with_ai(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db), chat_request: ChatRequest = None):
+def chat_with_ai(current_user: dict = Depends(get_current_verified_user), db: Session = Depends(get_db), chat_request: ChatRequest = None):
     try:
         return conversation_service.chat_with_ai(chat_request.message, chat_request.topic_id, current_user, db)
     except Exception as e:
@@ -39,7 +39,7 @@ def chat_with_ai(current_user: dict = Depends(get_current_user), db: Session = D
 
 @router.post("/gen-agent/")
 def generate_agent(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_verified_user),
     db: Session = Depends(get_db),
 ):
 
@@ -87,7 +87,7 @@ def generate_agent(
 def collect_updates(
     collect_request: CollectUpdatesRequest,
     background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_verified_user),
     db: Session = Depends(get_db)
 ):
 

@@ -6,6 +6,7 @@ from app.core.config import settings
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
+from urllib.parse import quote
 def create_jwt_token(
     user_id: str,
     user_email: str
@@ -83,3 +84,30 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
         )
+
+
+def get_current_verified_user(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token, try logging in again")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user.is_verified:
+        frontend_base = (settings.FRONTEND_BASE_URL or "").rstrip("/")
+        email = user.email or current_user.get("user_email") or ""
+        redirect_url = f"{frontend_base}/verification?email={quote(email)}"
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "message": "User needs to be verified",
+                "redirect_url": redirect_url,
+            },
+        )
+
+    return current_user

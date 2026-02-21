@@ -23,6 +23,8 @@ class Settings(BaseSettings):
 
     CORS_ALLOWED_ORIGINS: list[str]
 
+    FRONTEND_BASE_URL: str
+
     RESET_PASSWORD_SECRET_KEY: str
 
     SESSION_SECRET_KEY: str
