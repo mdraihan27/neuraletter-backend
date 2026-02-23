@@ -9,11 +9,9 @@ class Settings(BaseSettings):
 
     ADMIN_EMAIL: str | None = None
 
-    SMTP_EMAIL: str
-    SMTP_PASSWORD: str
-    SMTP_SERVER: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_SENDER_NAME: str = "Neuraletter"
+    MAILDOOR_API_KEY: str
+    MAILDOOR_API_URL: str = "https://maildoor-server.raihanhossen.site/api/email/send"
+    MAILDOOR_FROM_NAME: str = "Neuraletter"
 
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
@@ -37,5 +35,6 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
