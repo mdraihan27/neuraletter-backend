@@ -16,6 +16,7 @@ google-search-results
 greenlet==3.2.4
 h11==0.16.0
 httptools==0.7.1
+httpx
 idna==3.11
 itsdangerous
 passlib==1.7.4
